@@ -21,12 +21,12 @@ For example:
 
 ## Technology
 
-* Java 21
+* Java 25
 * Spring Boot
 * Spring Web MVC
 * Spring Data JPA / Hibernate
 * H2 in-memory database
-* Gradle
+* Maven
 
 ## Application Structure
 
@@ -100,22 +100,21 @@ The database is configured with `create-drop`, so the schema and sample data are
 
 ### Prerequisites
 
-* Java 21 or later
-
-The project includes the Gradle Wrapper, so a separate Gradle installation is not required.
+* Java 25 or later
+* Maven
 
 ### Start the application
 
 On Windows:
 
 ```powershell
-.\gradlew bootRun
+mvn spring-boot:run
 ```
 
 On macOS/Linux:
 
 ```bash
-./gradlew bootRun
+mvn spring-boot:run
 ```
 
 The API will be available at:
@@ -126,16 +125,8 @@ http://localhost:8080
 
 ### Build and test
 
-Windows:
-
-```powershell
-.\gradlew clean build
-```
-
-macOS/Linux:
-
 ```bash
-./gradlew clean build
+mvn clean verify
 ```
 
 This compiles the application and runs the automated tests.
