@@ -85,21 +85,41 @@ class RewardsServiceTest {
     }
 
     @Test
-    void calculateRewards_handlesRewardCalculationBoundaries() {
+    void calculateRewards_appliesThresholdsToEachTransactionIndividually() {
         Customer customer = customer(10L);
         when(customerRepository.existsById(10L)).thenReturn(true);
         when(transactionRepository.findByCustomerIdAndTransactionDateBetween(
                 10L, LocalDate.of(2026, 6, 1), LocalDate.of(2026, 8, 31)))
                 .thenReturn(List.of(
-                        transaction(customer, "50.00", 6, 1),
-                        transaction(customer, "50.99", 6, 2),
-                        transaction(customer, "100.00", 6, 3),
-                        transaction(customer, "100.99", 6, 4)));
+                        transaction(customer, "60.00", 7, 5),
+                        transaction(customer, "60.00", 7, 10)));
 
         CustomerRewards result = rewardsService.calculateRewards(10L);
 
-        assertEquals(100, result.totalRewards());
-        assertEquals(100, result.monthlyRewards().getFirst().points());
+        assertEquals(20, result.totalRewards());
+        assertEquals(new MonthlyReward(YearMonth.of(2026, 7), 20),
+                result.monthlyRewards().get(1));
+    }
+
+    @Test
+    void calculateRewards_usesThreeMonthWindowAcrossYearBoundary() {
+        Clock januaryClock = Clock.fixed(
+                Instant.parse("2027-01-15T12:00:00Z"), ZoneOffset.UTC);
+        RewardsService januaryService = new RewardsService(customerRepository, transactionRepository,
+                new RewardPointsCalculator(), januaryClock);
+        when(customerRepository.existsById(14L)).thenReturn(true);
+        when(transactionRepository.findByCustomerIdAndTransactionDateBetween(
+                14L, LocalDate.of(2026, 11, 1), LocalDate.of(2027, 1, 31)))
+                .thenReturn(List.of());
+
+        CustomerRewards result = januaryService.calculateRewards(14L);
+
+        assertEquals(List.of(
+                new MonthlyReward(YearMonth.of(2026, 11), 0),
+                new MonthlyReward(YearMonth.of(2026, 12), 0),
+                new MonthlyReward(YearMonth.of(2027, 1), 0)), result.monthlyRewards());
+        verify(transactionRepository).findByCustomerIdAndTransactionDateBetween(
+                14L, LocalDate.of(2026, 11, 1), LocalDate.of(2027, 1, 31));
     }
 
     @Test

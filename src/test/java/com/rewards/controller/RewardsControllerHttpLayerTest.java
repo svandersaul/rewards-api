@@ -1,101 +1,74 @@
 package com.rewards.controller;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.everyItem;
+import static org.hamcrest.Matchers.hasSize;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.YearMonth;
-import java.util.List;
-
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.test.web.reactive.server.WebTestClient;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.test.web.servlet.MockMvc;
 
-import com.rewards.dto.CustomerRewards;
-import com.rewards.dto.MonthlyReward;
-import com.rewards.dto.TransactionResponse;
-
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest
+@AutoConfigureMockMvc
 class RewardsControllerHttpLayerTest {
 
-    @LocalServerPort
-    private int port;
+    @Autowired
+    private MockMvc mockMvc;
 
-    private WebTestClient webTestClient;
-
-    @BeforeEach
-    void setUp() {
-        this.webTestClient = WebTestClient.bindToServer()
-                .baseUrl("http://localhost:" + port)
-                .build();
+    @Test
+    void getAllRewards_returnsThreeMonthSummariesForEveryCustomer() throws Exception {
+        mockMvc.perform(get("/rewards"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(3)))
+                .andExpect(jsonPath("$[*].monthlyRewards", everyItem(hasSize(3))))
+                .andExpect(jsonPath("$[*].totalRewards", containsInAnyOrder(90, 173, 147)));
     }
 
     @Test
-    void getAllRewards_returnsMonthlySummariesForEveryCustomer() {
-        webTestClient.get().uri("/rewards")
-                .exchange()
-                .expectStatus().isOk()
-                .expectBodyList(CustomerRewards.class)
-                .value(rewards -> {
-                    assertEquals(3, rewards.size());
-                    assertTrue(rewards.stream().allMatch(reward -> reward.monthlyRewards().size() == 3));
-                    assertEquals(List.of(90, 173, 147),
-                            rewards.stream().map(CustomerRewards::totalRewards).toList());
-                });
+    void getRewards_returnsThreeMonthlyValuesForValidCustomerId() throws Exception {
+        YearMonth currentMonth = YearMonth.now();
+
+        mockMvc.perform(get("/rewards/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.customerId").value(1))
+                .andExpect(jsonPath("$.monthlyRewards", hasSize(3)))
+                .andExpect(jsonPath("$.monthlyRewards[0].month")
+                        .value(currentMonth.minusMonths(2).toString()))
+                .andExpect(jsonPath("$.monthlyRewards[0].points").value(0))
+                .andExpect(jsonPath("$.monthlyRewards[1].month")
+                        .value(currentMonth.minusMonths(1).toString()))
+                .andExpect(jsonPath("$.monthlyRewards[1].points").value(90))
+                .andExpect(jsonPath("$.monthlyRewards[2].month").value(currentMonth.toString()))
+                .andExpect(jsonPath("$.monthlyRewards[2].points").value(0))
+                .andExpect(jsonPath("$.totalRewards").value(90));
     }
 
     @Test
-    void getRewards_returns200WithThreeMonthlyValuesForValidCustomerId() {
-        webTestClient.get().uri("/rewards/1")
-                .exchange()
-                .expectStatus().isOk()
-                .expectBody(CustomerRewards.class)
-                .value(body -> {
-                    assertNotNull(body);
-                    assertEquals(1L, body.customerId());
-                    assertEquals(List.of(
-                            new MonthlyReward(YearMonth.now().minusMonths(2), 0),
-                            new MonthlyReward(YearMonth.now().minusMonths(1), 90),
-                            new MonthlyReward(YearMonth.now(), 0)), body.monthlyRewards());
-                    assertEquals(90, body.totalRewards());
-                });
+    void getRewards_returns404WithErrorJsonForNonexistentCustomer() throws Exception {
+        mockMvc.perform(get("/rewards/45"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Customer not found: 45"));
     }
 
     @Test
-    void getRewards_returns404WithErrorJsonForNonexistentCustomer() {
-        webTestClient.get().uri("/rewards/45")
-                .exchange()
-                .expectStatus().isNotFound()
-                .expectBody()
-                .jsonPath("$.message").isEqualTo("Customer not found: 45");
+    void getRewards_returns400WithErrorJsonForInvalidCustomerId() throws Exception {
+        mockMvc.perform(get("/rewards/q"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Customer ID must be a number"));
     }
 
     @Test
-    void getRewards_returns400WithErrorJsonForInvalidCustomerId() {
-        webTestClient.get().uri("/rewards/q")
-                .exchange()
-                .expectStatus().isBadRequest()
-                .expectBody()
-                .jsonPath("$.message").exists();
-    }
-
-    @Test
-    void getTransactions_returnsTransactionsWithCalculatedRewardPoints() {
-        webTestClient.get().uri("/transactions")
-                .exchange()
-                .expectStatus().isOk()
-                .expectBodyList(TransactionResponse.class)
-                .value(transactions -> {
-                    assertEquals(12, transactions.size());
-                    assertTrue(transactions.stream().allMatch(transaction ->
-                            transaction.id() != null && transaction.customerId() != null
-                                    && transaction.rewardPoints() >= 0));
-                    assertTrue(transactions.stream().anyMatch(transaction ->
-                            transaction.customerId() == 1L
-                                    && transaction.amount().compareTo(new java.math.BigDecimal("120.00")) == 0
-                                    && transaction.rewardPoints() == 90));
-                });
+    void getTransactions_returnsTransactionsWithCalculatedRewardPoints() throws Exception {
+        mockMvc.perform(get("/transactions"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(12)))
+                .andExpect(jsonPath("$[?(@.customerId == 1 && @.amount == 120.0)].rewardPoints",
+                        containsInAnyOrder(90)));
     }
 }
