@@ -1,5 +1,6 @@
 package com.rewards.repository;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -18,4 +19,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
      * @return list of transactions for the specified customer
      */
     List<Transaction> findByCustomerId(Long customerId);
+
+    List<Transaction> findByCustomerIdAndTransactionDateBetween(Long customerId, LocalDate start, LocalDate end);
+    List<Transaction> findByTransactionDateBetween(LocalDate start, LocalDate end);
 }

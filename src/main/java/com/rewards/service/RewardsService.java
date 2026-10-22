@@ -1,13 +1,18 @@
 package com.rewards.service;
 
-import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.LocalDate;
 import java.time.YearMonth;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.springframework.stereotype.Service;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
-import com.rewards.dto.RewardsDTO;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.rewards.dto.CustomerRewards;
+import com.rewards.dto.MonthlyReward;
 import com.rewards.exception.CustomerNotFoundException;
 import com.rewards.model.Transaction;
 import com.rewards.repository.CustomerRepository;
@@ -19,12 +24,18 @@ import com.rewards.repository.TransactionRepository;
 @Service
 public class RewardsService {
 
+    private static final int REWARD_PERIOD_MONTHS = 3;
     private final CustomerRepository customerRepository;
     private final TransactionRepository transactionRepository;
-
-    public RewardsService(CustomerRepository customerRepository, TransactionRepository transactionRepository) {
+    private final RewardPointsCalculator calculator;
+    private final Clock clock;
+    
+    public RewardsService(CustomerRepository customerRepository, TransactionRepository transactionRepository,
+                          RewardPointsCalculator calculator, Clock clock) {
         this.customerRepository = customerRepository;
         this.transactionRepository = transactionRepository;
+        this.calculator = calculator;
+        this.clock = clock;
     }
 
     /**
@@ -34,46 +45,50 @@ public class RewardsService {
      * @return reward summary with monthly breakdown and overall total
      * @throws CustomerNotFoundException when the customer does not exist
      */
-    public RewardsDTO calculateRewards(Long customerId) {
-        Map<YearMonth, Integer> monthlyTotals = new HashMap<>();
-
-        // Check if customer exists
+    @Transactional(readOnly = true)
+    public CustomerRewards calculateRewards(Long customerId) {
         if (!customerRepository.existsById(customerId)) {
             throw new CustomerNotFoundException(customerId);
         }
-
-        // Calculate rewards for each transaction
-        List<Transaction> transactions = transactionRepository.findByCustomerId(customerId);
-        for (Transaction transaction : transactions) {
-            YearMonth yearMonth = YearMonth.from(transaction.getTransactionDate());
-            Integer rewardPoints = calculateRewardPoints(transaction.getAmount());
-            monthlyTotals.merge(yearMonth, rewardPoints, Integer::sum);
-        }
-        
-        // Calculate total rewards
-        int totalRewards = monthlyTotals.values().stream().mapToInt(Integer::intValue).sum();
-
-        // Return response object
-        return new RewardsDTO(customerId, monthlyTotals, totalRewards);
+        List<Transaction> transactions = transactionRepository
+                .findByCustomerIdAndTransactionDateBetween(customerId, periodStart(), periodEnd());
+        return toCustomerRewards(customerId, transactions);
     }
 
-    /**
-     * Converts a purchase amount into reward points using the following rules:
-     * <ul>
-     *   <li>No reward points for purchases up to $50.</li>
-     *   <li>1 point for each dollar spent on purchases between $50 and $100.</li>
-     *   <li>2 points for each dollar spent on purchases over $100.</li>
-     * </ul>
-     * @param amount transaction amount
-     * @return calculated reward points for the transaction
-     */
-    private int calculateRewardPoints(BigDecimal amount) {
-        if (amount.compareTo(BigDecimal.valueOf(50)) <= 0) {
-            return 0;
-        } else if (amount.compareTo(BigDecimal.valueOf(100)) <= 0) {
-            return amount.subtract(BigDecimal.valueOf(50)).intValue();
-        } else {
-            return 50 + (amount.subtract(BigDecimal.valueOf(100)).intValue() * 2);
-        }
+    @Transactional(readOnly = true)
+    public List<CustomerRewards> calculateAllRewards() {
+        Map<Long, List<Transaction>> transactionsByCustomerId = transactionRepository
+                .findByTransactionDateBetween(periodStart(), periodEnd()).stream()
+                .collect(Collectors.groupingBy(t -> t.getCustomer().getId()));
+        return customerRepository.findAll().stream()
+                .map(c -> toCustomerRewards(c.getId(),
+                        transactionsByCustomerId.getOrDefault(c.getId(), List.of())))
+                .toList();
+    }
+
+    private CustomerRewards toCustomerRewards(Long customerId, List<Transaction> transactions) {
+        Map<YearMonth, Integer> pointsByMonth = transactions.stream().collect(
+                Collectors.groupingBy(t -> YearMonth.from(t.getTransactionDate()),
+                        Collectors.summingInt(t -> calculator.pointsFor(t.getAmount()))));
+        List<MonthlyReward> monthlyRewards = rewardPeriodMonths().stream()
+                .map(month -> new MonthlyReward(month, pointsByMonth.getOrDefault(month, 0)))
+                .toList();
+        int totalRewards = monthlyRewards.stream().mapToInt(MonthlyReward::points).sum();
+        return new CustomerRewards(customerId, monthlyRewards, totalRewards);
+    }
+
+    private List<YearMonth> rewardPeriodMonths() {
+        YearMonth currentMonth = YearMonth.now(clock);
+        return IntStream.range(0, REWARD_PERIOD_MONTHS)
+                .mapToObj(i -> currentMonth.minusMonths(REWARD_PERIOD_MONTHS - 1 - i))
+                .toList();
+    }
+
+    private LocalDate periodStart() { 
+        return rewardPeriodMonths().get(0).atDay(1); 
+    }
+
+    private LocalDate periodEnd()   { 
+        return YearMonth.now(clock).atEndOfMonth(); 
     }
 }
