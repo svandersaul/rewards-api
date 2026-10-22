@@ -2,6 +2,7 @@ package com.rewards.exception;
 
 import org.springframework.beans.TypeMismatchException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -22,10 +23,9 @@ public class GlobalExceptionHandler {
      * @return HTTP 404 response with an error message
      */
     @ExceptionHandler(CustomerNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleCustomerNotFound(
+    public ResponseEntity<ProblemDetail> handleCustomerNotFound(
             CustomerNotFoundException exception) {
-        ErrorResponse error = new ErrorResponse(HttpStatus.NOT_FOUND, "Customer Not Found", exception.getMessage());
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+        return problem(HttpStatus.NOT_FOUND, "Customer Not Found", exception.getMessage());
     }
 
     /**
@@ -35,29 +35,24 @@ public class GlobalExceptionHandler {
      * @return HTTP 400 response with an error message
      */
     @ExceptionHandler(TypeMismatchException.class)
-    public ResponseEntity<ErrorResponse> handleTypeMismatch(TypeMismatchException exception) {
-        ErrorResponse error = new ErrorResponse(HttpStatus.BAD_REQUEST, "Bad Request", "Customer ID must be a number");
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    public ResponseEntity<ProblemDetail> handleTypeMismatch(TypeMismatchException exception) {
+        return problem(HttpStatus.BAD_REQUEST, "Bad Request", "Customer ID must be a number");
     }
 
     @ExceptionHandler(NoResourceFoundException.class)
-    public ResponseEntity<ErrorResponse> handleResourceNotFound(NoResourceFoundException exception) {
-        ErrorResponse error = new ErrorResponse(HttpStatus.NOT_FOUND, "Not Found", "Resource not found");
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    public ResponseEntity<ProblemDetail> handleResourceNotFound(NoResourceFoundException exception) {
+        return problem(HttpStatus.NOT_FOUND, "Not Found", "Resource not found");
     }
 
     @ExceptionHandler(NoHandlerFoundException.class)
-    public ResponseEntity<ErrorResponse> handleNoHandlerFound(NoHandlerFoundException exception) {
-        ErrorResponse error = new ErrorResponse(HttpStatus.NOT_FOUND, "Not Found", "Resource not found");
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    public ResponseEntity<ProblemDetail> handleNoHandlerFound(NoHandlerFoundException exception) {
+        return problem(HttpStatus.NOT_FOUND, "Not Found", "Resource not found");
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
-    public ResponseEntity<ErrorResponse> handleMethodNotSupported(
+    public ResponseEntity<ProblemDetail> handleMethodNotSupported(
             HttpRequestMethodNotSupportedException exception) {
-        ErrorResponse error = new ErrorResponse(
-                HttpStatus.METHOD_NOT_ALLOWED, "Method Not Allowed", "HTTP method not supported");
-        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(error);
+        return problem(HttpStatus.METHOD_NOT_ALLOWED, "Method Not Allowed", "HTTP method not supported");
     }
 
     /**
@@ -67,8 +62,14 @@ public class GlobalExceptionHandler {
      * @return HTTP 500 response with a generic message
      */
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleUnexpectedException(Exception exception) {
-        ErrorResponse error = new ErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Internal Server Error", "An unexpected error occurred");
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+    public ResponseEntity<ProblemDetail> handleUnexpectedException(Exception exception) {
+        return problem(HttpStatus.INTERNAL_SERVER_ERROR, "Internal Server Error",
+                "An unexpected error occurred");
+    }
+
+    private ResponseEntity<ProblemDetail> problem(HttpStatus status, String title, String detail) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, detail);
+        problem.setTitle(title);
+        return ResponseEntity.status(status).body(problem);
     }
 }

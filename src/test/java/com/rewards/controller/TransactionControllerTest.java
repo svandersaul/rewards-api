@@ -57,13 +57,13 @@ class TransactionControllerTest {
     void unknownPath_returns404WithErrorJson() throws Exception {
         mockMvc.perform(get("/transactions/unknown"))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.message").value("Resource not found"));
+                .andExpect(jsonPath("$.detail").value("Resource not found"));
     }
 
     @Test
     void wrongHttpMethod_returns405WithErrorJson() throws Exception {
         mockMvc.perform(post("/transactions"))
                 .andExpect(status().isMethodNotAllowed())
-                .andExpect(jsonPath("$.message").value("HTTP method not supported"));
+                .andExpect(jsonPath("$.detail").value("HTTP method not supported"));
     }
 }

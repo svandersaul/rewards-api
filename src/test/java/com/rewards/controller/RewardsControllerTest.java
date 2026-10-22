@@ -80,7 +80,7 @@ class RewardsControllerTest {
     void getRewards_returns400ForInvalidCustomerId() throws Exception {
         mockMvc.perform(get("/rewards/q"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Customer ID must be a number"));
+                .andExpect(jsonPath("$.detail").value("Customer ID must be a number"));
     }
 
     @Test
@@ -89,7 +89,7 @@ class RewardsControllerTest {
 
         mockMvc.perform(get("/rewards/45"))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.message").value("Customer not found: 45"));
+                .andExpect(jsonPath("$.detail").value("Customer not found: 45"));
     }
 
     @Test
