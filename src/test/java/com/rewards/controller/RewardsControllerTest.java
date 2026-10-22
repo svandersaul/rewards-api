@@ -10,11 +10,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.time.YearMonth;
 import java.util.List;
 
-import com.rewards.dto.CustomerRewards;
-import com.rewards.dto.MonthlyReward;
-import com.rewards.exception.CustomerNotFoundException;
-import com.rewards.exception.GlobalExceptionHandler;
-import com.rewards.service.RewardsService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,6 +18,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import com.rewards.dto.CustomerRewards;
+import com.rewards.dto.MonthlyReward;
+import com.rewards.exception.CustomerNotFoundException;
+import com.rewards.exception.GlobalExceptionHandler;
+import com.rewards.service.RewardsService;
+
+/** Tests reward HTTP endpoints using standalone MockMvc and a mocked service. */
 @ExtendWith(MockitoExtension.class)
 class RewardsControllerTest {
 
@@ -38,6 +40,7 @@ class RewardsControllerTest {
                 .build();
     }
 
+    /** Returns monthly reward summaries for each customer. */
     @Test
     void getAllRewards_returnsMonthlySummariesForEveryCustomer() throws Exception {
         when(rewardsService.calculateAllRewards()).thenReturn(List.of(
@@ -60,6 +63,7 @@ class RewardsControllerTest {
                 .andExpect(jsonPath("$[1].totalRewards").value(173));
     }
 
+    /** Returns the requested customer's monthly and total rewards. */
     @Test
     void getRewards_returnsMonthlySummaryForCustomer() throws Exception {
         when(rewardsService.calculateRewards(42L)).thenReturn(new CustomerRewards(42L, List.of(
@@ -76,6 +80,7 @@ class RewardsControllerTest {
                 .andExpect(jsonPath("$.totalRewards").value(90));
     }
 
+    /** Returns a problem response when the customer ID is not numeric. */
     @Test
     void getRewards_returns400ForInvalidCustomerId() throws Exception {
         mockMvc.perform(get("/rewards/q"))
@@ -83,6 +88,7 @@ class RewardsControllerTest {
                 .andExpect(jsonPath("$.detail").value("Customer ID must be a number"));
     }
 
+    /** Returns a not-found problem when the customer does not exist. */
     @Test
     void getRewards_returns404ForNonexistentCustomer() throws Exception {
         when(rewardsService.calculateRewards(45L)).thenThrow(new CustomerNotFoundException(45L));
@@ -92,12 +98,14 @@ class RewardsControllerTest {
                 .andExpect(jsonPath("$.detail").value("Customer not found: 45"));
     }
 
+    /** Returns 404 for paths that do not match an endpoint. */
     @Test
     void unknownPath_returns404NotServerError() throws Exception {
         mockMvc.perform(get("/nope"))
                 .andExpect(status().isNotFound());
     }
 
+    /** Returns 405 when an endpoint is called with an unsupported method. */
     @Test
     void wrongHttpMethod_returns405() throws Exception {
         mockMvc.perform(post("/rewards/1"))

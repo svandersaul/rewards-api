@@ -19,12 +19,14 @@ import com.rewards.model.Customer;
 import com.rewards.model.Transaction;
 import com.rewards.repository.TransactionRepository;
 
+/** Verifies transaction response mapping and date ordering. */
 @ExtendWith(MockitoExtension.class)
 class TransactionServiceTest {
 
     @Mock
     private TransactionRepository transactionRepository;
 
+    /** Includes transaction, customer, amount, date, and calculated points in the response. */
     @Test
     void findAll_returnsTransactionDetailsWithCalculatedPointsSortedByDate() {
         Customer customer = new Customer("Test", "Customer");

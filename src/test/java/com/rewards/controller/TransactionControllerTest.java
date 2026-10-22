@@ -11,9 +11,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
-import com.rewards.dto.TransactionResponse;
-import com.rewards.exception.GlobalExceptionHandler;
-import com.rewards.service.TransactionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,6 +19,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import com.rewards.dto.TransactionResponse;
+import com.rewards.exception.GlobalExceptionHandler;
+import com.rewards.service.TransactionService;
+
+/** Tests transaction HTTP endpoints using standalone MockMvc and a mocked service. */
 @ExtendWith(MockitoExtension.class)
 class TransactionControllerTest {
 
@@ -37,6 +39,7 @@ class TransactionControllerTest {
                 .build();
     }
 
+    /** Returns transaction details and calculated reward points. */
     @Test
     void getTransactions_returnsTransactionsWithCalculatedRewardPoints() throws Exception {
         when(transactionService.findAll()).thenReturn(List.of(
@@ -53,6 +56,7 @@ class TransactionControllerTest {
                 .andExpect(jsonPath("$[0].rewardPoints").value(90));
     }
 
+    /** Returns a not-found problem for unknown transaction routes. */
     @Test
     void unknownPath_returns404WithErrorJson() throws Exception {
         mockMvc.perform(get("/transactions/unknown"))
@@ -60,6 +64,7 @@ class TransactionControllerTest {
                 .andExpect(jsonPath("$.detail").value("Resource not found"));
     }
 
+    /** Returns a method-not-allowed problem for unsupported HTTP methods. */
     @Test
     void wrongHttpMethod_returns405WithErrorJson() throws Exception {
         mockMvc.perform(post("/transactions"))

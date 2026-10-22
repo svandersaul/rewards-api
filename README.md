@@ -1,149 +1,84 @@
 # Rewards API
 
-A Spring Boot REST API that calculates customer reward points based on transaction amounts over a three-month period.
+A Spring Boot REST API that calculates customer reward points for transactions in the current and previous two calendar months.
 
-## Overview
+## Reward rules
 
-Customers earn reward points on each transaction according to the following rules:
+Points are calculated **independently for each transaction**, then summed by month and customer:
 
-* No points are awarded for the first $50 of a transaction.
-* Customers earn 1 point for each whole dollar between $50 and $100.
-* Customers earn 2 points for each whole dollar above $100.
-* Reward calculations are performed **per transaction**, not on the customer's total spending for a month.
-* Fractional dollar amounts do not earn partial points.
+* The first $50 earns no points.
+* Each whole dollar from $50 through $100 earns 1 point.
+* Each whole dollar above $100 earns 2 points.
+* Cents do not earn partial points.
 
-For example:
+Examples: `$50.99` earns 0 points, `$75.00` earns 25 points, `$100.00` earns 50 points, and `$120.00` earns 90 points.
 
-* `$50.00` → 0 points
-* `$75.00` → 25 points
-* `$100.00` → 50 points
-* `$120.00` → 90 points
-
-## Technology
-
-* Java 25
-* Spring Boot
-* Spring Web MVC
-* Spring Data JPA / Hibernate
-* H2 in-memory database
-* Maven
-
-## Application Structure
-
-The application follows a simple layered architecture:
-
-```text
-Controller
-    ↓
-Service
-    ↓
-Repository
-    ↓
-Database
-```
-
-* **Controller** – Handles HTTP requests and responses.
-* **Service** – Contains the reward calculation and aggregation logic.
-* **Repository** – Provides database access through Spring Data JPA.
-* **Model** – Represents customers and transactions.
-* **DTO** – Defines the data returned by the API.
-* **Exception** – Contains custom exceptions and global error handling.
-* **Config** – Loads sample customer and transaction data when the application starts.
+The reward period is three calendar months inclusive: the current month and the two preceding months. Each response includes all three months, even when a month has no transactions.
 
 ## API
 
-### Get Customer Rewards
+### `GET /rewards`
 
-```http
-GET /rewards/{customerId}
-```
+Returns reward summaries for all customers.
 
-Returns the customer's reward points grouped by month, along with the total reward points.
+### `GET /rewards/{customerId}`
 
-Example:
-
-```http
-GET /rewards/1
-```
+Returns one customer's monthly and total rewards.
 
 Example response:
 
 ```json
 {
   "customerId": 1,
-  "monthlyRewards": {
-    "2026-06": 0,
-    "2026-07": 90,
-    "2026-08": 0
-  },
+  "monthlyRewards": [
+    { "month": "2026-08", "points": 0 },
+    { "month": "2026-09", "points": 90 },
+    { "month": "2026-10", "points": 0 }
+  ],
   "totalRewards": 90
 }
 ```
 
-### Error Responses
+### `GET /transactions`
 
-The API returns appropriate HTTP status codes for common errors:
+Returns all transactions, ordered by transaction date, with each transaction's calculated reward points.
 
-* `400 Bad Request` – Invalid customer ID, such as `/rewards/q`
-* `404 Not Found` – Customer does not exist
-* `500 Internal Server Error` – Unexpected application error
+### Errors
 
-Errors are returned as JSON responses rather than exposing internal exception details.
+Errors use Spring's Problem Details JSON format (`type`, `title`, `status`, and `detail`):
 
-## Sample Data
+* `400 Bad Request` — customer ID is not numeric.
+* `404 Not Found` — customer does not exist or the requested path is unknown.
+* `405 Method Not Allowed` — the route does not support the requested HTTP method.
+* `500 Internal Server Error` — an unexpected application error.
 
-The application uses an H2 in-memory database and loads sample customers and transactions when it starts.
+Unexpected errors return a generic detail rather than exposing internal exception information.
 
-The database is configured with `create-drop`, so the schema and sample data are recreated each time the application starts.
+## Technology and structure
 
-## Running the Application
-
-### Prerequisites
-
-* Java 25 or later
+* Java 25, Spring Boot, Spring Web MVC
+* Spring Data JPA / Hibernate
+* H2 in-memory database
 * Maven
 
-### Start the application
+The application is organized into controllers, services, repositories, JPA models, response DTOs, exception handling, and configuration. At startup, it creates three sample customers and four transactions for each, dated relative to the current month. The H2 schema uses `create-drop`, so data is recreated on every application start. Open EntityManager in View is disabled.
 
-On Windows:
+## Run, build, and test
+
+Prerequisites: Java 25 or later and Maven.
+
+Start the application:
 
 ```powershell
 mvn spring-boot:run
 ```
 
-On macOS/Linux:
+The API is available at `http://localhost:8080`.
 
-```bash
-mvn spring-boot:run
-```
+Build and run the full test suite:
 
-The API will be available at:
-
-```text
-http://localhost:8080
-```
-
-### Build and test
-
-```bash
+```powershell
 mvn clean verify
 ```
 
-This compiles the application and runs the automated tests.
-
-## Testing
-
-The application includes tests at multiple levels:
-
-* **Service unit tests** – Verify reward calculations, transaction aggregation, customer validation, and monthly totals.
-* **Controller unit tests** – Verify controller behavior and interaction with the service.
-* **HTTP-layer integration tests** – Verify REST endpoints, HTTP status codes, JSON responses, and error handling.
-
-The tests cover reward thresholds, multiple transactions within a month, transactions across multiple months, customers with no transactions, nonexistent customers, and invalid customer IDs.
-
-## Assumptions
-
-* Reward points are awarded for whole-dollar amounts only; fractional dollar amounts do not earn partial points.
-* Reward thresholds are applied independently to each transaction.
-* The sample data contains transactions from June through August 2026.
-* The H2 database is intended for demonstration and development purposes and is not intended as a production database.
+The tests cover reward thresholds and per-transaction calculations, monthly aggregation, the three-month window including year boundaries, empty customer histories, REST responses and errors, and seeded-data regression behavior.

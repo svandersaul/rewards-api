@@ -1,13 +1,14 @@
 package com.rewards.controller;
 
-import com.rewards.dto.CustomerRewards;
-import com.rewards.service.RewardsService;
+import java.util.List;
+
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
+import com.rewards.dto.CustomerRewards;
+import com.rewards.service.RewardsService;
 
 /**
  * REST controller that exposes reward point totals for customers.
@@ -22,16 +23,21 @@ public class RewardsController {
         this.rewardsService = rewardsService;
     }
 
+    /**
+     * Returns reward summaries for every customer.
+     *
+     * @return reward summaries for all customers
+     */
     @GetMapping
     public List<CustomerRewards> getAllRewards() {
         return rewardsService.calculateAllRewards();
     }
 
     /**
-     * Retrieves the monthly and total reward points for a given customer.
+     * Returns monthly and total reward points for the specified customer.
      *
      * @param customerId ID of the customer
-     * @return reward details for the customer
+     * @return the customer's monthly and total rewards
      */
     @GetMapping("/{customerId}")
     public CustomerRewards getRewards(@PathVariable("customerId") Long customerId) {

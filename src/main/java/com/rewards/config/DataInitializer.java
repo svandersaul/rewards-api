@@ -27,10 +27,11 @@ public class DataInitializer implements CommandLineRunner {
     private final Clock clock;
 
     /**
-     * Creates the initializer with the required repositories.
+     * Creates the initializer with repositories and the application clock.
      *
-     * @param customerRepository repository used to persist customer records
-     * @param transactionRepository repository used to persist transaction records
+     * @param customerRepository repository for customer records
+     * @param transactionRepository repository for transaction records
+     * @param clock clock used to set sample transaction dates
      */
     public DataInitializer(CustomerRepository customerRepository, TransactionRepository transactionRepository, Clock clock) {
         this.customerRepository = customerRepository;
@@ -39,9 +40,9 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     /**
-     * Seeds the database with sample customers and transactions.
+     * Saves sample customers and transactions with dates relative to the current month.
      *
-     * @param args runtime arguments passed by Spring Boot
+     * @param args command-line arguments passed by Spring Boot
      */
     @Override
     public void run(String... args) {
@@ -70,13 +71,13 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     /**
-     * Creates a date for the seeded records using a fixed sample year.
+     * Returns a seeded date a given number of months before the current month.
      *
-     * @param month target month for the transaction
-     * @param dayOfMonth target day of month for the transaction
-     * @return a LocalDate used in the seed dataset
+     * @param monthsAgo number of months before the current month
+     * @param dayOfMonth day of the month for the sample transaction
+     * @return the calculated sample transaction date
      */
     private LocalDate date(int monthsAgo, int dayOfMonth) {
-    return YearMonth.now(clock).minusMonths(monthsAgo).atDay(dayOfMonth);
-}
+        return YearMonth.now(clock).minusMonths(monthsAgo).atDay(dayOfMonth);
+    }
 }

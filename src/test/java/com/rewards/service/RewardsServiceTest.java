@@ -10,8 +10,8 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
 import java.time.YearMonth;
+import java.time.ZoneOffset;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -28,6 +28,7 @@ import com.rewards.model.Transaction;
 import com.rewards.repository.CustomerRepository;
 import com.rewards.repository.TransactionRepository;
 
+/** Verifies reward aggregation, customer validation, and the rolling three-month window. */
 @ExtendWith(MockitoExtension.class)
 class RewardsServiceTest {
 
@@ -48,6 +49,7 @@ class RewardsServiceTest {
                 new RewardPointsCalculator(), CLOCK);
     }
 
+    /** Rejects unknown customers without querying their transactions. */
     @Test
     void calculateRewards_throwsWhenCustomerDoesNotExist() {
         when(customerRepository.existsById(99L)).thenReturn(false);
@@ -61,6 +63,7 @@ class RewardsServiceTest {
                         LocalDate.of(2026, 8, 31));
     }
 
+    /** Aggregates per-transaction rewards by month and totals them for one customer. */
     @Test
     void calculateRewards_returnsMonthlyAndTotalRewardsForCustomer() {
         Customer customer = customer(7L);
@@ -84,6 +87,7 @@ class RewardsServiceTest {
                 7L, LocalDate.of(2026, 6, 1), LocalDate.of(2026, 8, 31));
     }
 
+    /** Applies earning thresholds independently to each purchase. */
     @Test
     void calculateRewards_appliesThresholdsToEachTransactionIndividually() {
         Customer customer = customer(10L);
@@ -101,6 +105,7 @@ class RewardsServiceTest {
                 result.monthlyRewards().get(1));
     }
 
+    /** Includes the current month and preceding two months across a year boundary. */
     @Test
     void calculateRewards_usesThreeMonthWindowAcrossYearBoundary() {
         Clock januaryClock = Clock.fixed(
@@ -122,6 +127,7 @@ class RewardsServiceTest {
                 14L, LocalDate.of(2026, 11, 1), LocalDate.of(2027, 1, 31));
     }
 
+    /** Sums multiple transactions within the same month. */
     @Test
     void calculateRewards_aggregatesMultipleTransactionsInSingleMonth() {
         Customer customer = customer(11L);
@@ -141,6 +147,7 @@ class RewardsServiceTest {
                 result.monthlyRewards().get(1));
     }
 
+    /** Places rewards in the month each transaction occurred. */
     @Test
     void calculateRewards_aggregatesTransactionsAcrossMonths() {
         Customer customer = customer(12L);
@@ -161,6 +168,7 @@ class RewardsServiceTest {
         assertEquals(190, result.totalRewards());
     }
 
+    /** Returns all three months with zero points when there are no transactions. */
     @Test
     void calculateRewards_returnsZeroForEachPeriodMonthWhenCustomerHasNoTransactions() {
         when(customerRepository.existsById(13L)).thenReturn(true);
@@ -177,6 +185,7 @@ class RewardsServiceTest {
         assertEquals(0, result.totalRewards());
     }
 
+    /** Returns summaries for every customer, including customers without transactions. */
     @Test
     void calculateAllRewards_includesCustomersWithoutTransactions() {
         Customer withTransactions = customer(1L);
@@ -199,12 +208,27 @@ class RewardsServiceTest {
                         new MonthlyReward(YearMonth.of(2026, 8), 0)), 0)), results);
     }
 
+    /**
+     * Creates a customer fixture with a known identifier.
+     *
+     * @param id customer ID
+     * @return customer fixture
+     */
     private static Customer customer(long id) {
         Customer customer = new Customer("Test", "Customer");
         customer.setId(id);
         return customer;
     }
 
+    /**
+     * Creates a transaction fixture for the fixed test year.
+     *
+     * @param customer customer associated with the transaction
+     * @param amount transaction amount
+     * @param month transaction month
+     * @param day transaction day of month
+     * @return transaction fixture
+     */
     private static Transaction transaction(Customer customer, String amount, int month, int day) {
         return new Transaction(customer, new BigDecimal(amount), LocalDate.of(2026, month, day));
     }

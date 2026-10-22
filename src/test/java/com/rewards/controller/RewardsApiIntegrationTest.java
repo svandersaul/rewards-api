@@ -12,6 +12,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.web.servlet.MockMvc;
 
+/** Checks seeded data through the running Spring MVC application context. */
 @SpringBootTest
 @AutoConfigureMockMvc
 class RewardsApiIntegrationTest {
@@ -19,13 +20,18 @@ class RewardsApiIntegrationTest {
     @Autowired
     private MockMvc mockMvc;
 
+    /** Confirms seeded customers and reward totals remain consistent. */
     @Test
-    void seededCustomersHaveExpectedRewardsAndTransactions() throws Exception {
+    void seededCustomersHaveExpectedRewards() throws Exception {
         mockMvc.perform(get("/rewards"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(3)))
                 .andExpect(jsonPath("$[*].totalRewards", containsInAnyOrder(90, 173, 147)));
+    }
 
+    /** Confirms seeded customers and transaction rewards remain consistent. */
+    @Test
+    void seededCustomersHaveExpectedTransactions() throws Exception {
         mockMvc.perform(get("/transactions"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(12)))
