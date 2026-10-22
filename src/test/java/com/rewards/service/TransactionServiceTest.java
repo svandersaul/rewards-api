@@ -13,6 +13,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Sort;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import com.rewards.dto.TransactionResponse;
 import com.rewards.model.Customer;
@@ -30,10 +31,10 @@ class TransactionServiceTest {
     @Test
     void findAll_returnsTransactionDetailsWithCalculatedPointsSortedByDate() {
         Customer customer = new Customer("Test", "Customer");
-        customer.setId(7L);
+        ReflectionTestUtils.setField(customer, "id", 7L);
         Transaction transaction = new Transaction(
                 customer, new BigDecimal("120.50"), LocalDate.of(2026, 8, 10));
-        transaction.setId(23L);
+        ReflectionTestUtils.setField(transaction, "id", 23L);
         when(transactionRepository.findAll(Sort.by("transactionDate")))
                 .thenReturn(List.of(transaction));
 

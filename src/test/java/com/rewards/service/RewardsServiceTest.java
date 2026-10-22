@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import com.rewards.dto.CustomerRewards;
 import com.rewards.dto.MonthlyReward;
@@ -216,7 +217,7 @@ class RewardsServiceTest {
      */
     private static Customer customer(long id) {
         Customer customer = new Customer("Test", "Customer");
-        customer.setId(id);
+        ReflectionTestUtils.setField(customer, "id", id);
         return customer;
     }
 
